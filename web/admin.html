@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>短链接管理</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f5f5f5; }
+    td.num { text-align: right; }
+  </style>
+</head>
+<body>
+  <h1>短链接管理</h1>
+  <p>共 {{len .Links}} 条</p>
+  <table>
+    <thead>
+      <tr>
+        <th>短码</th>
+        <th>原链接</th>
+        <th>点击数</th>
+        <th>创建时间</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Links}}
+      <tr>
+        <td><a href="/{{.Code}}" target="_blank">{{.Code}}</a></td>
+        <td><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
+        <td class="num">{{.Clicks}}</td>
+        <td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="4">还没有短链接</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</body>
+</html>

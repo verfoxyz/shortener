@@ -3,4 +3,5 @@ shortener
 shortener.db
 shortener.db-shm
 shortener.db-wal
-
+shortener.exe
+.golangci.yml
