@@ -1,2 +1,6 @@
 shortener
 *.db
+shortener.db
+shortener.db-shm
+shortener.db-wal
+

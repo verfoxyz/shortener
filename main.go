@@ -2,39 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
-	"sync"
+	"net/url"
 )
 
-type Link struct {
-	Code string
-	URL  string
-}
-type Store struct {
-	mu    sync.RWMutex
-	links map[string]string // code -> url
-}
-
-func NewStore() *Store {
-	return &Store{links: make(map[string]string)}
-}
-
-func (s *Store) Save(code, url string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.links[code] = url
-}
-
-func (s *Store) Get(code string) (string, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	url, ok := s.links[code]
-	return url, ok
-}
-
+// 测试
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func randomCode(n int) string {
@@ -61,9 +37,23 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "url is required", http.StatusBadRequest)
 		return
 	}
+	u, err := url.Parse(req.URL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		http.Error(w, "invalid url", http.StatusBadRequest)
+		return
+	}
 
-	code := randomCode(6)
-	h.store.Save(code, req.URL)
+	var code string
+	for i := range 5 {
+		code = randomCode(6)
+		if err := h.store.Save(r.Context(), code, req.URL); err == nil {
+			break
+		} else if i == 4 {
+			log.Printf("save link:%v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -75,16 +65,27 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
-	url, ok := h.store.Get(code)
-	if !ok {
+	link, err := h.store.Get(r.Context(), code)
+	if errors.Is(err, ErrNotFound) {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, url, http.StatusFound)
+	if err != nil {
+		log.Printf("get link: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, link, http.StatusFound)
 }
 
 func main() {
-	store := NewStore()
+	store, err := NewStore("shortener.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer store.Close()
+
 	h := &Handler{store: store}
 
 	mux := http.NewServeMux()
