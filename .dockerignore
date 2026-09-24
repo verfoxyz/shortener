@@ -1,0 +1,9 @@
+.git
+*.db
+*.db-shm
+*.db-wal
+cover.out
+shortener
+shortener.exe
+Dockerfile
+.dockerignore

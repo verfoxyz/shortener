@@ -1,0 +1,85 @@
+# golangci-lint 严格检查配置 (v2 格式)
+# 安装: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+# 运行: golangci-lint run ./...
+version: "2"
+
+linters:
+  # 关掉默认集合，只启用下面显式列出的（避免遗漏/意外）
+  default: none
+  enable:
+    # ---- 核心：未处理的错误 ----
+    - errcheck        # 检查所有被忽略的 error 返回值
+    - errorlint       # 检查 errors.Is/As、%w 的正确用法
+    - wrapcheck       # 跨包返回的错误必须被包装
+    - nilerr          # 返回 nil 但实际检查到 err != nil
+    - contextcheck    # 检查 context 是否正确透传
+
+    # ---- 资源泄漏 ----
+    - bodyclose       # 未关闭 http.Response.Body
+    - sqlclosecheck   # 未关闭 sql.Rows / sql.Stmt
+    - rowserrcheck    # 忘记检查 rows.Err()
+    - noctx           # 发请求/查询时未带 context
+
+    # ---- 正确性与风格 ----
+    - govet           # 官方 vet 全部子检查
+    - staticcheck     # 最强大的一类深度分析
+    - ineffassign     # 无效赋值
+    - unused          # 未使用的代码
+    - gocritic        # 大量惯用法与潜在 bug
+    - revive          # golint 继任者
+    - misspell        # 拼写
+    - exhaustive      # switch 未覆盖全部枚举值
+    - unparam         # 未使用的函数参数/返回值
+
+  settings:
+    errcheck:
+      # 关键：让 `_ = f()` 这种显式丢弃也算问题
+      check-blank: true
+      # 关键：类型断言失败也要检查
+      check-type-assertions: true
+      # 确实想忽略的可以在这里排除，例如：
+      # exclude-functions:
+      #   - (*os.File).Close
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment   # 结构体字段对齐很吵，按需开启
+
+    staticcheck:
+      checks: ["all"]
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - opinionated
+        - experimental
+
+    revive:
+      rules:
+        - name: package-comments
+        - name: exported
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: if-return
+        - name: var-naming
+          arguments:
+            - ["ID", "URL", "HTTP", "IP", "API"]
+
+  exclusions:
+    generated: lax
+    rules:
+      # 测试文件允许松散一些
+      - path: _test\.go
+        linters:
+          - errcheck
+          - wrapcheck
+          - unparam
+
+formatters:
+  enable:
+    - gofumpt        # 比 gofmt 更严格
+    - goimports      # 自动整理 import 分组
