@@ -145,8 +145,8 @@ func main() {
 	mux.HandleFunc("GET /{code}", h.Redirect)
 
 	var handler http.Handler = mux
-	handler = logMiddeware(handler)
-	handler = recoverMiddeware(handler)
+	handler = logMiddleware(handler)
+	handler = recoverMiddleware(handler)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr,

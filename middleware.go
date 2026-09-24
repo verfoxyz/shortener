@@ -16,7 +16,7 @@ func (r *statusRecoder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-func logMiddeware(next http.Handler) http.Handler {
+func logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecoder{ResponseWriter: w, status: http.StatusOK}
@@ -32,7 +32,7 @@ func logMiddeware(next http.Handler) http.Handler {
 	})
 }
 
-func recoverMiddeware(next http.Handler) http.Handler {
+func recoverMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
