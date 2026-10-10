@@ -1,4 +1,5 @@
 # shortener
+个人学习Go时开发的项目。
 
 一个用 Go 标准库写的短链接服务：生成短码、302 跳转、记录点击并在管理页看统计。单二进制、零外部依赖（SQLite 内嵌），可本地直接跑，也可用 Docker 部署。
 
@@ -115,27 +116,3 @@ shortener/
 ├── Dockerfile         # 多阶段构建（builder → distroless）
 └── .golangci.yml      # 静态检查配置
 ```
-
-## 性能与已知限制
-
-在本机（Windows，压测客户端与服务同机）用固定并发 + keep-alive 压测的结果：
-
-| 场景 | QPS | P50 | P99 | Max |
-| --- | --- | --- | --- | --- |
-| 写路径（`POST /shorten`）并发 1 | ~575 | 1.7ms | 3.3ms | 5.8ms |
-| 读路径（`GET /{code}`）并发 4 | ~537 | 2.0ms | 108ms | 1.7s |
-| 读路径并发 64 | ~512 | 4.0ms | **2.6s** | **5.06s** |
-
-结论与原因：
-
-- **吞吐天花板约 575 次/秒，且不随并发提升** —— 因为每次跳转都要同步 `INSERT` 一条点击记录，且每条 `INSERT` 是一个独立事务（WAL 下默认 `synchronous=FULL`，每次提交都 fsync），写被串行化。
-- **Max 5.06s ≈ `busy_timeout(5000)`** —— 并发上来后请求是在写锁上排队重试到超时，属于排队而非快速失败。
-- 改造方向：点击写入改 `channel` + 单写者批量事务；`synchronous` 在 WAL 下调到 `NORMAL`。
-
-其他已知限制：
-
-- 静态检查用的是偏严的配置（`.golangci.yml` 开了 `errcheck(check-blank)` / `wrapcheck` / `noctx` / `gocritic` / `gofumpt` 等），目前 `golangci-lint run ./...` 仍有约 20 项未处理，集中在：`noctx`（`Exec`/`Ping`/`httptest.NewRequest` 应换成 `...Context` 版本）、`wrapcheck`（外部包错误未包装）、`errcheck`（`rows.Close` 等返回值未检查）、测试文件格式（`gofumpt`），尚未逐条收敛。
-- SQLite 的外键**默认不启用**，`clicks` 里的 `FOREIGN KEY` 目前只是声明，需要 `PRAGMA foreign_keys=ON`（或用 DSN `_pragma=foreign_keys(1)`）才真正生效。
-- 短码用 `math/rand` 生成，**不是密码学安全**的；若短链指向私有资源，应换 `crypto/rand`。
-- 单机 SQLite，写并发能力有限，也不能水平扩展；要扩容需换 MySQL/Postgres 并把短码映射放进 Redis。
-- `srv.Shutdown` 只等 HTTP 请求结束，不负责回收自定义后台 goroutine（引入异步写点击后需要一并收尾）。
